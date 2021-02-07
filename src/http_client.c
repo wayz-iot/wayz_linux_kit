@@ -12,6 +12,7 @@
 #include <netdb.h>
 
 #include "http_client.h"
+#include "wayz_log.h"
 
 
 #if 1  // get/post http
@@ -97,58 +98,54 @@ int webclient_request(const char *URI, const char *host_server, const char *post
     int s, r;
     char recv_buf[4096];
     char *post_buf = NULL;
-    int i = 0;
+    // int i = 0;
 
     int err = getaddrinfo(host_server, "80", &hints, &res);
 
     if(err != 0 || res == NULL) 
     {
-        printf("DNS lookup failed err=%d res=%p \r\n", err, res);
+        WAYZ_LOGE("DNS lookup failed err=%d res=%p.", err, res);
         return WAYZ_FAIL;
     }
 
     /* Code to print the resolved IP.
        Note: inet_ntoa is non-reentrant, look at ipaddr_ntoa_r for "real" code */
     addr = &((struct sockaddr_in *)res->ai_addr)->sin_addr;
-    printf("DNS lookup succeeded. IP=%s\r\n", inet_ntoa(*addr));
+    WAYZ_LOGD("DNS lookup succeeded. IP=%s\r\n", inet_ntoa(*addr));
 
     s = socket(res->ai_family, res->ai_socktype, 0);
     if(s < 0) {
-        printf("... Failed to allocate socket.\r\n");
+        WAYZ_LOGE("... Failed to allocate socket.");
         freeaddrinfo(res);
         return WAYZ_FAIL;
     }
-    printf("... allocated socket");
+    WAYZ_LOGD("... allocated socket");
 
     if(connect(s, res->ai_addr, res->ai_addrlen) != 0) {
-        printf("... socket connect failed errno\r\n");
+        WAYZ_LOGE("... socket connect failed errno");
         close(s);
         freeaddrinfo(res);
         return WAYZ_FAIL;
     }
 
-    printf("... connected\r\n");
+    WAYZ_LOGD("... connected\r\n");
     freeaddrinfo(res);
 
     if (NULL == post_data)
     {
         sprintf(recv_buf, GET_REQUEST, URI, host_server);
         if (write(s, recv_buf, strlen(recv_buf)) < 0) {
-            printf("... socket send failed\r\n");
+            WAYZ_LOGE("... socket send failed");
             close(s);
             return WAYZ_FAIL;
         }
-        for(i = 0; i < strlen (recv_buf); i++) {
-            putchar(recv_buf[i]);
-        }
-        printf("-------------------get----------------\r\n");
     }
     else
     {
         post_buf = (char *) malloc(strlen(POST_REQUEST) + strlen(URI) + strlen(host_server) + strlen(post_data) + 10);
         sprintf(post_buf, POST_REQUEST, URI, host_server, strlen(post_data), post_data);
         if (write(s, post_buf, strlen(post_buf)) < 0) {
-            printf("... socket send failed\r\n");
+            WAYZ_LOGE("... socket send failed");
             close(s);
             return WAYZ_FAIL;
         }
@@ -157,17 +154,17 @@ int webclient_request(const char *URI, const char *host_server, const char *post
         post_buf = NULL;
     }
 
-    printf("... socket send success\r\n");
+    WAYZ_LOGD("... socket send success");
 
     struct timeval receiving_timeout;
     receiving_timeout.tv_sec = 5;
     receiving_timeout.tv_usec = 0;
     if (setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &receiving_timeout, sizeof(receiving_timeout)) < 0) {
-        printf("... failed to set socket receiving timeout\r\n");
+        WAYZ_LOGE("... failed to set socket receiving timeout");
         close(s);
         return WAYZ_FAIL;
     }
-    printf("... set socket receiving timeout success\r\n");
+    WAYZ_LOGD("... set socket receiving timeout success");
 
     /* Read HTTP response */
     bzero(recv_buf, sizeof(recv_buf));
@@ -175,7 +172,7 @@ int webclient_request(const char *URI, const char *host_server, const char *post
     r = read(s, recv_buf, sizeof(recv_buf) - 1);
     if (r < 0)
     {
-        printf("webclient_request data failure.\r\n");
+        WAYZ_LOGE("webclient_request data failure.");
         return WAYZ_FAIL;
     }
 
@@ -183,7 +180,7 @@ int webclient_request(const char *URI, const char *host_server, const char *post
         putchar(recv_buf[i]);
     }
     close(s);
-    printf("... done reading from socket. Last read return=%d.\r\n", r);
+    WAYZ_LOGD("... done reading from socket. Last read return=%d.", r);
     size_t parse_len = 0;
     int length = 0;
     length = _esp_parse_http(recv_buf, r, &parse_len);
@@ -192,11 +189,11 @@ int webclient_request(const char *URI, const char *host_server, const char *post
     response_buf = (unsigned char *)malloc(r - parse_len);
     if (NULL == response_buf)
     {
-        printf("webclient_request malloc failure.\r\n");
+        WAYZ_LOGE("webclient_request malloc failure.");
         return WAYZ_FAIL;
     }
     memset(response_buf, 0, length);
-// printf("----------------\r\n");
+// WAYZ_LOGD("----------------\r\n");
     memcpy(response_buf, recv_buf + parse_len, length);
     *response = response_buf;
     // for(int i = 0; i < length; i++) {
@@ -465,59 +462,59 @@ time_t http_get_time(char *time_data)
     int err = getaddrinfo(TIME_SERVER, "80", &hints, &res);
 
     if(err != 0 || res == NULL) {
-        printf("DNS lookup failed err=%d res=%p\r\n", err, res);
+        WAYZ_LOGE("DNS lookup failed err=%d res=%p", err, res);
         return WAYZ_FAIL;
     }
 
     /* Code to print the resolved IP.
         Note: inet_ntoa is non-reentrant, look at ipaddr_ntoa_r for "real" code */
     addr = &((struct sockaddr_in *)res->ai_addr)->sin_addr;
-    printf("DNS lookup succeeded. IP=%s", inet_ntoa(*addr));
+    WAYZ_LOGD("DNS lookup succeeded. IP=%s", inet_ntoa(*addr));
 
     s = socket(res->ai_family, res->ai_socktype, 0);
     if(s < 0) {
-        printf("... Failed to allocate socket.\r\n");
+        WAYZ_LOGE("... Failed to allocate socket.");
         freeaddrinfo(res);
         return WAYZ_FAIL;
     }
-    printf("... allocated socket\r\n");
+    WAYZ_LOGD("... allocated socket\r\n");
 
     if(connect(s, res->ai_addr, res->ai_addrlen) != 0) {
-        printf("... socket connect failed errno\r\n");
+        WAYZ_LOGE("... socket connect failed errno");
         close(s);
         freeaddrinfo(res);
         return WAYZ_FAIL;
     }
 
-    printf("... connected\r\n");
+    WAYZ_LOGD("... connected\r\n");
     freeaddrinfo(res);
 
     if (write(s, REQUEST, strlen(REQUEST)) < 0) {
-        printf("... socket send failed\r\n");
+        WAYZ_LOGE("... socket send failed");
         close(s);
         return WAYZ_FAIL;
     }
-    printf("... socket send success\r\n");
+    WAYZ_LOGD("... socket send success");
 
     struct timeval receiving_timeout;
     receiving_timeout.tv_sec = 3;
     receiving_timeout.tv_usec = 0;
     if (setsockopt(s, SOL_SOCKET, SO_RCVTIMEO, &receiving_timeout,
             sizeof(receiving_timeout)) < 0) {
-        printf("... failed to set socket receiving timeout\r\n");
+        WAYZ_LOGE("... failed to set socket receiving timeout");
         close(s);
         return WAYZ_FAIL;
     }
-    printf("... set socket receiving timeout success\r\n");
+    WAYZ_LOGD("... set socket receiving timeout success");
 
     bzero(recv_buf, sizeof(recv_buf));
     r = read(s, recv_buf, sizeof(recv_buf)-1);
-    printf("... done reading from socket. Last read return=%d\r\n", r);
+    WAYZ_LOGD("... done reading from socket. Last read return=%d", r);
     close(s);
     char *p = strstr(recv_buf, "sysTime2");
     if (NULL == p)
     {
-        printf("strstr systime2 failure\r\n");
+        WAYZ_LOGE("strstr systime2 failure");
         return WAYZ_FAIL;
     }
     char buf_time[20] = {0};
@@ -545,11 +542,11 @@ char set_system_time(void)
     time_t t = http_get_time(NULL);
     if (WAYZ_FAIL == t)
     {
-        printf("set system time failure.\r\n");
+        WAYZ_LOGE("set system time failure.");
         t = wayz_get_time_by_ntp(NULL);
         if (0 == t)
         {
-            printf("wayz_get_time_by_ntp failure. \r\n");
+            WAYZ_LOGE("wayz_get_time_by_ntp failure. ");
             return WAYZ_FAIL;
         }
     }

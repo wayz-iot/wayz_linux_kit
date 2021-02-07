@@ -4,9 +4,7 @@
 #include <string.h>
 
 #include "dev_client.h"
-
-#define  WAYZ_FAIL      -1
-#define  WAYZ_OK        0
+#include "wayz_log.h"
 
 
 static void string_to_low(char *data)
@@ -29,10 +27,10 @@ char scan_file_handle(tap_info *data)
     int current_index = 0; //当前读取的行
     char str_line[STR_LEN] = {0}; //每行最大读取的字符数,可根据实际情况扩大
     system("iw wlan0 scan > /tmp/wifi_scan");
-    printf("wifi scan handle start.\r\n");
+    WAYZ_LOGD("wifi scan handle start.\r\n");
     if((fp = fopen("/tmp/wifi_scan", "r")) == NULL) //判断文件是否存在及可读
     {
-        printf("open file %s failure!\r\n", "/tmp/wifi_scan");
+        WAYZ_LOGE("open file %s failure!\r\n", "/tmp/wifi_scan");
         return WAYZ_FAIL;
     }
 
@@ -75,7 +73,7 @@ char scan_file_handle(tap_info *data)
             current_index++;
         }
     }
-    printf("wifi scan handle end.\r\n");
+    WAYZ_LOGD("wifi scan handle end.\r\n");
     fclose(fp); //关闭文件
 
 	data->count = current_index;
@@ -91,7 +89,7 @@ static char get_wifi_sta_chip_mac(char *addr)
     char str_line[STR_LEN] = {0}; //每行最大读取的字符数,可根据实际情况扩大
     if((fp = popen("ifconfig", "r")) == NULL) //判断文件是否存在及可读
     {
-        printf("exce ifconfig failure!\r\n");
+        WAYZ_LOGE("exce ifconfig failure!\r\n");
         return WAYZ_FAIL;
     }
 // wlan0     Link encap:Ethernet  HWaddr 68:B9:D3:CF:A5:99
@@ -119,10 +117,10 @@ static char get_wifi_chip_sta_mac_uuid(char *addr, char *uuid)
 	char buf[20] = {0};
     char temp[40] = {0};
     char str_line[STR_LEN] = {0}; //每行最大读取的字符数,可根据实际情况扩大
-    printf("get_wifi_chip_sta_mac_uuid start.\r\n");
+    WAYZ_LOGD("get_wifi_chip_sta_mac_uuid start.\r\n");
     if((fp = popen("wpa_cli -i wlan0 status", "r")) == NULL) //判断文件是否存在及可读
     {
-        printf("exce 'wpa_cli -iwlan0 status' failure!\r\n");
+        WAYZ_LOGD("exce 'wpa_cli -iwlan0 status' failure!\r\n");
         return WAYZ_FAIL;
     }
 
@@ -152,7 +150,7 @@ static char get_wifi_chip_sta_mac_uuid(char *addr, char *uuid)
             break;
         }
     }
-    printf("get_wifi_chip_sta_mac_uuid end.\r\n");
+    WAYZ_LOGD("get_wifi_chip_sta_mac_uuid end.\r\n");
     pclose(fp); //关闭文件
     return ret;
 }

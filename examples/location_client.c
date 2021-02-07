@@ -6,10 +6,8 @@
 
 #include "dev_client.h"
 #include "wayz_pos.h"
+#include "wayz_log.h"
 
-
-#define  WAYZ_FAIL      -1
-#define  WAYZ_OK        0
 
 #define  DEV_NAME       "LINUX"
 #define  VENDER         "ALIENTEK"
@@ -21,23 +19,21 @@
 
 #define  ACCESS_KEY     "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" // 需要申请
 
-
 static void location_client_entry(void *parament)
 {
     twifi_chip_info wifi_chip;
     char ret = 0;
     get_wifi_sta_mac(&wifi_chip);
-    printf("station mac : %s \r\nuuid: %s \r\n", wifi_chip.sta_addr, wifi_chip.uuid);
+    WAYZ_LOGD("station mac : %s \r\nuuid: %s ", wifi_chip.sta_addr, wifi_chip.uuid);
 
     tdeviec_info *dev_info;
 
-    wlan_info = wifi_param_init(WAYZ_WIFI_SSID, WAYZ_WIFI_PWD);
     dev_info = dev_para_init(DEV_NAME, VENDER, PRODUCT, SN, TENANT);
 
     ret = dev_register_init(dev_info, ACCESS_KEY);
     if (ret != DEV_REGISTER_OK)
     {
-        printf("\033[31;22mdevice register failure. \033[0m\n");
+        WAYZ_LOGE("device register failure.");
         return ;
     }
 
@@ -46,7 +42,7 @@ static void location_client_entry(void *parament)
     ret = get_position_info(ACCESS_KEY, NULL, &location); 
     if (WAYZ_FAIL == ret)
     {
-        printf("\033[31;22mthe device failed to obtain latitude and longitude information.\033[0m\n");
+        WAYZ_LOGE("the device failed to obtain latitude and longitude information.");
     }
     else
     {
@@ -58,7 +54,7 @@ static void location_client_entry(void *parament)
         ret = get_position_info(ACCESS_KEY, NULL, &location); 
         if (WAYZ_FAIL == ret)
         {
-            printf("\033[31;22mthe device failed to obtain latitude and longitude information.\033[0m\n");
+            WAYZ_LOGE("the device failed to obtain latitude and longitude information.");
         }
         else
         {

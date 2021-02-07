@@ -8,9 +8,9 @@
 #include "http_client.h"
 #include "dev_client.h"
 #include "wayz_pos.h"
+#include "wayz_log.h"
 
-
-twifi_chip_info tchip_info = {0};
+static twifi_chip_info tchip_info = {0};
 static char access_key[KEY_LENGTH] = {0};
 
 #if 1 // 经纬度转换
@@ -115,17 +115,12 @@ static void gcj02towgs84(double wgLat, double wgLon, double * mgLat, double* mgL
 #endif
 
 
-static void wayz_error(char* msg)
-{
-    printf("\033[31;22m[E/wayz]: ERROR %s\033[0m\r\n", msg); // Print the error message to stderr.
-}
-
 twifi_info *wifi_param_init(const char *ssid, const char *passwd)
 {
     twifi_info *wlan_info = (twifi_info *) calloc(1, sizeof (twifi_info));
     if (NULL == wlan_info)
     {
-        wayz_error("wifi param malloc fail.");
+        WAYZ_LOGE("wifi param malloc fail.");
         return NULL;
     }
 
@@ -141,7 +136,7 @@ tdeviec_info * dev_para_init(const char *dev_name, const char *manufacturer, con
     tdeviec_info *dev_info = (tdeviec_info *) calloc(1, sizeof (tdeviec_info));
     if (NULL == dev_info)
     {
-        wayz_error("wifi param malloc fail.");
+        WAYZ_LOGE("wifi param malloc fail.");
         return NULL;
     }
 
@@ -282,7 +277,7 @@ static char *point_cJson_handler(tpost_data *post_data, tap_info ap_info)
     buffer = (char *)malloc(strlen(cJsonBuffer));
     if (NULL == buffer)
     {
-        wayz_error("point_cJson_handler create malloc failure.");
+        WAYZ_LOGE("point_cJson_handler create malloc failure.");
         return NULL;
     }
 
@@ -292,7 +287,7 @@ static char *point_cJson_handler(tpost_data *post_data, tap_info ap_info)
 
     if (1 != state)
     {
-        wayz_error("point_cJson_handler: location No wifi, GNSS, cellulars signal data");
+        WAYZ_LOGE("point_cJson_handler: location No wifi, GNSS, cellulars signal data");
         return NULL;
     }
     
@@ -354,7 +349,7 @@ static void updata_system_time(char *timestamp)
     memcpy(buf_time, timestamp, 10);
 
     cur_time = atoll(buf_time);
-    printf("updata system time cur_time: %lld\r\n", cur_time);
+    WAYZ_LOGD("updata system time cur_time: %lld", cur_time);
     struct timeval now = { .tv_sec = cur_time };
     settimeofday(&now, NULL);
     updata_time_flag = 1;
@@ -370,7 +365,7 @@ static void parse_point_str_handler(char *data, tlocation_info *location)
 
     if (WAYZ_FAIL == __parse_str_handler(data, "longitude", valueBuf))
     {
-        printf("post request for data failed. \r\n");
+        WAYZ_LOGE("post request for data failed.");
         return ;
     }
     location->point.gcj02.longitude = atof(valueBuf);
@@ -461,21 +456,21 @@ static unsigned char parse_point_cJson_handler(char *data, tlocation_info *locat
     
     root = cJSON_Parse(data);
     if (!root) {
-        printf("\033[31;22m\r\n[E/wayz]Error cJSON_Parse root failure.\033[0m\n");
+        WAYZ_LOGE("Error cJSON_Parse root failure.");
         goto _root_fail;
     }
 
     object = cJSON_GetObjectItem(root, "location");
     if (!object)
     {
-        wayz_error("object failure\r\n");
+        WAYZ_LOGE("object failure.");
         goto _root_fail;
     }
     
     position = cJSON_GetObjectItem(object, "position");
     if (!position)
     {
-        wayz_error("position failure\r\n");
+        WAYZ_LOGE("position failure");
         goto _root_fail;
     }
 
@@ -502,7 +497,7 @@ static unsigned char parse_point_cJson_handler(char *data, tlocation_info *locat
     point = cJSON_GetObjectItem(position, "point");
     if (!point)
     {
-        wayz_error("point failure\r\n");
+        WAYZ_LOGE("point failure.");
         goto _root_fail;
     }
 
@@ -528,7 +523,7 @@ static unsigned char parse_point_cJson_handler(char *data, tlocation_info *locat
     place = cJSON_GetObjectItem(object, "place");
     if (!place)
     {
-        wayz_error("place failure\r\n");
+        WAYZ_LOGE("place failure.");
         goto _root_fail;
     }
 
@@ -681,7 +676,7 @@ static unsigned char * wayz_webclient_get_data(const char *url)
     length = webclient_request(url, HOST_SERVER, NULL, &buffer);
     if (length < 0)
     {
-        wayz_error("webclient GET request response data error.");
+        WAYZ_LOGE("webclient GET request response data error.");
         free(buffer);
         return NULL;
     }
@@ -698,7 +693,7 @@ static unsigned char * wayz_webclient_post_data(const char *URI, const char *pos
     length = webclient_request(URI, HOST_SERVER, post_data, &buffer);
     if (length < 0)
     {
-        printf("\033[31;22m[E/wayz]:webclient POST request response data error.\033[0m\r\n");
+        WAYZ_LOGE("webclient POST request response data error.");
         free(buffer);
         return NULL;
     }
@@ -728,7 +723,7 @@ static char query_device()
     buffer = wayz_webclient_get_data(url);
     if (NULL == buffer)
     {
-        printf("\033[31;22m[E/wayz]: visiting %s failure\033[0m\r\n", url);
+        WAYZ_LOGE("visiting %s failure", url);
         result = WAYZ_FAIL;
         goto _url_fail;
     }
@@ -769,7 +764,7 @@ static char register_device(tdeviec_info *dev_info)
     cJsonBuffer = register_dev_cjson_handler(dev_info);
     if (NULL == cJsonBuffer)
     {
-        printf("\033[31;22m[E/wayz]: register_dev_cjson_handler failure\033[0m\r\n");
+        WAYZ_LOGE("register_dev_cjson_handler failure");
         result = WAYZ_FAIL;
         goto _url_fail;
     }
@@ -777,7 +772,7 @@ static char register_device(tdeviec_info *dev_info)
     buffer = wayz_webclient_post_data(url, cJsonBuffer);
     if (NULL == buffer)
     {
-        printf("\033[31;22m[E/wayz]: visiting http failure\033[0m\r\n");
+        WAYZ_LOGE("visiting http failure");
         result = WAYZ_FAIL;
         goto _url_fail;
     }
@@ -786,7 +781,7 @@ static char register_device(tdeviec_info *dev_info)
     if (NULL == temp)
     {
         result = WAYZ_FAIL;
-        printf("\033[31;22m[E/wayz]: register buffer %s\033[0m\r\n", buffer);
+        WAYZ_LOGE("register buffer %s", buffer);
         goto _query_fail;
     }
     result = WAYZ_OK;
@@ -828,7 +823,7 @@ char dev_register_init(tdeviec_info *dev_info, char *key)
     get_wifi_sta_mac(&tchip_info);
     if (NULL == key && 0 == strcmp(key, ""))
     {
-        wayz_error("Visiting the website key failure");
+        WAYZ_LOGE("Visiting the website key failure");
     }
     else
     {
@@ -838,17 +833,17 @@ char dev_register_init(tdeviec_info *dev_info, char *key)
     // 1 Check whether the device is registered
     if (WAYZ_OK == query_device())
     {
-        wayz_error("the device has been registered, no need to register again");
+        WAYZ_LOGE("the device has been registered, no need to register again");
         return DEV_REGISTER_OK;
     }
     // 2 registered handler
     if (WAYZ_OK == register_device(dev_info))
     {
-        printf("register device success.\r\n");
+        WAYZ_LOGD("register device success.\r\n");
     }
     else
     {
-        wayz_error("register device failure.");
+        WAYZ_LOGE("register device failure.");
         return DEV_REGISTER_FAIL;
     }
 
@@ -878,7 +873,7 @@ char get_position_info(char *key, tpost_data *post_data, tlocation_info *locatio
     get_wifi_sta_mac(&tchip_info);
     if (NULL == key && 0 == strcmp(key, ""))
     {
-        wayz_error("Visiting the website key failure");
+        WAYZ_LOGE("Visiting the website key failure");
     }
     else
     {
@@ -900,7 +895,7 @@ char get_position_info(char *key, tpost_data *post_data, tlocation_info *locatio
     cJsonBuffer = point_cJson_handler(post_data, ap_infos);
     if (NULL == cJsonBuffer)
     {
-        wayz_error("get_position_info: location No wifi, GNSS, cellulars signal data");
+        WAYZ_LOGE("get_position_info: location No wifi, GNSS, cellulars signal data");
         result = WAYZ_FAIL;
         goto _url_fail;
     }
@@ -908,7 +903,7 @@ char get_position_info(char *key, tpost_data *post_data, tlocation_info *locatio
     buffer = wayz_webclient_post_data(url, cJsonBuffer);
     if (NULL == buffer)
     {
-        printf("\033[31;22m[E/wayz]:get_position_info visiting http failure\033[0m\r\n");
+        WAYZ_LOGE("get_position_info visiting http failure.");
         result = WAYZ_FAIL;
     }
     free(cJsonBuffer);
